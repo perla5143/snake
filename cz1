@@ -1,0 +1,147 @@
+#include<iostream>
+
+#include<allegro5\allegro_native_dialog.h>
+#include<allegro5\allegro_font.h>
+#include<allegro5\allegro_ttf.h>
+#include<allegro5\allegro_primitives.h>
+#include<time.h>
+#include<vector>
+
+// ustawienia główne
+const int move = 50;
+int r = 25;
+ALLEGRO_DISPLAY *disp;
+ALLEGRO_DISPLAY_MODE disp_mode;
+ALLEGRO_FONT *font;
+ALLEGRO_EVENT event;
+enum directions { UP, DOWN, LEFT, RIGHT };
+
+struct Wspolrzedne{
+	int x,y;
+};
+
+void poruszWezem(std::vector<Wspolrzedne>& waz, int kierunekRuchu) {
+	for (int i = waz.size() - 1 ; i > 0; i--) {
+		waz[i].y = waz[i - 1].y;
+		waz[i].x = waz[i - 1].x;
+	}
+
+	switch (kierunekRuchu) {
+		//poruszanie sie wezem
+	case UP:
+		waz[0].y -= move;
+		break;
+	case DOWN:
+		waz[0].y += move;
+		break;
+	case LEFT:
+		waz[0].x -= move;
+		break;
+	case RIGHT:
+		waz[0].x += move;
+		break;
+	}
+	for (int i = 0; i < waz.size(); i++) {
+		if (waz[i].y > disp_mode.height) {
+			waz[i].y = 0;
+		}
+		if (waz[i].y<0) {
+			waz[i].y = disp_mode.height - 60;
+		}
+		if (waz[i].x>disp_mode.width) {
+			waz[i].x = 0;
+		}
+		if (waz[i].x < 0) {
+			waz[i].x = disp_mode.width - 60;
+		}
+	}
+}
+
+void uzytyKlawisz(bool &gra, int &kierunekRuchu) {
+	switch (event.keyboard.keycode) {
+	case ALLEGRO_KEY_UP:
+		kierunekRuchu = kierunekRuchu == DOWN ? DOWN : UP;
+		break;
+	case ALLEGRO_KEY_DOWN:
+		kierunekRuchu = kierunekRuchu == UP ? UP : DOWN;
+		break;
+	case ALLEGRO_KEY_LEFT:
+		kierunekRuchu = kierunekRuchu == RIGHT ? RIGHT : LEFT;
+		break;
+	case ALLEGRO_KEY_RIGHT:
+		kierunekRuchu = kierunekRuchu == LEFT ? LEFT : RIGHT;
+		break;
+	case ALLEGRO_KEY_ESCAPE:
+		gra = false;
+		break;
+	}
+}
+
+void rysujWeza(std::vector<Wspolrzedne> waz) {
+	for (int i = 0; i < waz.size(); i++) {
+		al_draw_filled_circle(waz[i].x, waz[i].y, r, al_map_rgb(107, 142, 35));
+	}
+}
+
+int main(void){
+	//INICJALIZACJA GRY
+	srand(time(NULL));
+	bool gra = true;
+	int kierunekRuchu = UP;
+	std::vector<Wspolrzedne> waz;
+	Wspolrzedne wspolrzedneWeza;
+	wspolrzedneWeza.x = 10;
+	wspolrzedneWeza.y = 10;
+	waz.push_back(wspolrzedneWeza);
+	
+	//INICJALIZACJA ALLEGRO 5
+		if(!al_init()){
+			al_show_native_message_box(NULL,NULL,NULL,"BLAD AL_INIT",NULL,ALLEGRO_MESSAGEBOX_ERROR);
+			return -1;
+		}
+		
+		disp_mode.width = 1280;
+		disp_mode.height = 768;
+		if(!(disp=al_create_display(disp_mode.width,disp_mode.height))) // twozenie okna z rozdzielczoscia disp_mode
+		{
+			al_show_native_message_box(NULL,NULL,NULL,"BLAD AL_CREATE_DISPLAY",NULL,ALLEGRO_MESSAGEBOX_ERROR);
+			return -2; // sprawdzenie czy okno sie otworzylo
+		}
+	
+		al_init_font_addon(); //inicjacja  czcionki
+		al_init_ttf_addon();// inicjacja zwiaazanego z tekstem
+		al_init_primitives_addon();//inicjacja prymitywow
+		font=al_load_font("font.ttf",100,NULL);//wczytywanie czcionki
+		al_install_keyboard();//instalacja klawiatury
+		ALLEGRO_TIMER *timer=al_create_timer(1.0/10);//tworzeni timera 
+		ALLEGRO_EVENT_QUEUE *ev_queue=al_create_event_queue();//tworzenie kolejki eventow
+		al_register_event_source(ev_queue,al_get_keyboard_event_source());
+		al_register_event_source(ev_queue,al_get_timer_event_source(timer));
+	//KONIEC INICJALIZACJI ALLEGRO 5
+
+	al_start_timer(timer);
+	
+	while(gra){
+		al_wait_for_event(ev_queue, &event);
+
+		if(event.type==ALLEGRO_EVENT_KEY_DOWN){
+			// ustawienia do korzystania z klawiatury
+			uzytyKlawisz(gra, kierunekRuchu);
+		}
+		if(event.type==ALLEGRO_EVENT_TIMER){
+			//gdy timer zaskoczy ma narysować wszystko
+			poruszWezem(waz, kierunekRuchu);
+			//wyswietlanie weza i jedzenia
+			al_clear_to_color(al_map_rgb(0,0,0));
+			rysujWeza(waz);
+			
+			al_flip_display();
+			
+		}
+	}	
+
+	al_destroy_font(font);
+	al_destroy_display(disp);
+
+	return 0;
+}
